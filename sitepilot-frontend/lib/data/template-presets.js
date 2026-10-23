@@ -648,9 +648,191 @@ const portfolioLayout = [
   },
 ];
 
+// ─── Template 3 — v0 Next-Gen E-Commerce & SaaS ──────────────────────────────
+
+const ecommerceSaaSLayout = [
+  {
+    id: "tpl-ecom-nav",
+    type: "container",
+    settings: { direction: "horizontal", contentWidth: "boxed", maxWidth: 1280, gap: 0 },
+    styles: { backgroundColor: "#0b1411", paddingTop: 16, paddingBottom: 16 },
+    columns: [
+      {
+        id: "tpl-ecom-nav-col",
+        width: 12,
+        components: [
+          {
+            id: "tpl-ecom-navbar",
+            type: "Navbar",
+            props: {
+              logo: "SitePilot Pro",
+              links: [
+                { label: "Features", href: "#features" },
+                { label: "Store", href: "#store" },
+                { label: "Pricing", href: "#pricing" }
+              ],
+              ctaText: "Get Started",
+              theme: "dark"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "tpl-ecom-hero",
+    type: "container",
+    settings: { direction: "horizontal", contentWidth: "boxed", maxWidth: 1280, gap: 16 },
+    styles: { backgroundColor: "#0b1411", paddingTop: 80, paddingBottom: 80 },
+    columns: [
+      {
+        id: "tpl-ecom-hero-col",
+        width: 12,
+        components: [
+          {
+            id: "tpl-ecom-hero-comp",
+            type: "Hero",
+            props: {
+              badgeText: "✨ AI-Powered Store & Builder v2.0",
+              title: "Craft High-Converting Websites with AI",
+              subtitle: "Build breathtaking digital experiences with interactive animations, headless commerce, and instant Razorpay checkout.",
+              ctaText: "Explore Collection",
+              ctaLink: "#store",
+              secondaryCtaText: "View Features",
+              secondaryCtaLink: "#features",
+              theme: "dark",
+              showSocialProof: true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "tpl-ecom-features",
+    type: "container",
+    settings: { direction: "horizontal", contentWidth: "boxed", maxWidth: 1280, gap: 16 },
+    styles: { backgroundColor: "#080d0b", paddingTop: 96, paddingBottom: 96 },
+    columns: [
+      {
+        id: "tpl-ecom-feat-col",
+        width: 12,
+        components: [
+          {
+            id: "tpl-ecom-feat-comp",
+            type: "Features",
+            props: {
+              badge: "CORE ARCHITECTURE",
+              title: "Engineered for Peak Performance",
+              subtitle: "Scale effortlessly with cutting-edge edge infrastructure and modern design tokens.",
+              theme: "dark"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "tpl-ecom-store",
+    type: "container",
+    settings: { direction: "horizontal", contentWidth: "boxed", maxWidth: 1280, gap: 16 },
+    styles: { backgroundColor: "#0b1411", paddingTop: 96, paddingBottom: 96 },
+    columns: [
+      {
+        id: "tpl-ecom-store-col",
+        width: 12,
+        components: [
+          {
+            id: "tpl-ecom-store-comp",
+            type: "ProductGrid",
+            props: {
+              badge: "EXCLUSIVE COLLECTION",
+              title: "Featured Store Collection",
+              subtitle: "Hand-picked flagship hardware and accessories with instant Razorpay checkout.",
+              currency: "₹",
+              theme: "dark"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "tpl-ecom-pricing",
+    type: "container",
+    settings: { direction: "horizontal", contentWidth: "boxed", maxWidth: 1280, gap: 16 },
+    styles: { backgroundColor: "#080d0b", paddingTop: 96, paddingBottom: 96 },
+    columns: [
+      {
+        id: "tpl-ecom-pricing-col",
+        width: 12,
+        components: [
+          {
+            id: "tpl-ecom-pricing-comp",
+            type: "Pricing",
+            props: {
+              badge: "TRANSPARENT PLANS",
+              title: "Predictable, Scalable Pricing",
+              subtitle: "Everything you need to launch and monetize your brand today.",
+              currency: "₹",
+              theme: "dark"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "tpl-ecom-cta",
+    type: "container",
+    settings: { direction: "horizontal", contentWidth: "boxed", maxWidth: 1280, gap: 16 },
+    styles: { backgroundColor: "#0b1411", paddingTop: 80, paddingBottom: 80 },
+    columns: [
+      {
+        id: "tpl-ecom-cta-col",
+        width: 12,
+        components: [
+          {
+            id: "tpl-ecom-cta-comp",
+            type: "CTA",
+            props: {
+              title: "Ready to Supercharge Your Web Presence?",
+              description: "Join thousands of builders scaling with SitePilot Next-Generation Builder.",
+              buttonText: "Start Building Free",
+              buttonLink: "#store"
+            },
+            styles: { backgroundColor: "#14231e", textColor: "#ffffff" }
+          },
+          {
+            id: "tpl-ecom-wa-comp",
+            type: "WhatsAppWidget",
+            props: {
+              phoneNumber: "919876543210",
+              message: "Hi! I am interested in SitePilot Pro.",
+              tooltip: "Chat with us on WhatsApp"
+            }
+          }
+        ]
+      }
+    ]
+  }
+];
+
 // ─── Exports ────────────────────────────────────────────────────────────────
 
 export const templatePresets = [
+  {
+    id: "ecommerce-saas",
+    name: "v0 Next-Gen Store & SaaS",
+    description:
+      "A dark-mode, animated website with floating navbar, spotlight hero, Bento grid, live product catalog, Razorpay checkout, and WhatsApp chat.",
+    preview: {
+      icon: "layout",
+      sections: ["Navbar", "Hero", "Bento Grid", "Store", "Pricing", "CTA", "WhatsApp"],
+      color: "#d3ff4a",
+    },
+    layout: ecommerceSaaSLayout,
+  },
   {
     id: "landing-page",
     name: "Landing Page",

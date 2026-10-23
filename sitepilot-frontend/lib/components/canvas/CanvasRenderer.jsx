@@ -652,6 +652,7 @@ function ComponentRenderer({ component, isContainerLockedByOther = false, locked
       )}
 
       <Component
+        id={component.id}
         props={component.props}
         styles={component.styles}
         isSelected={isSelected && !isLockedByOther}

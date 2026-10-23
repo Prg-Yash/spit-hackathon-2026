@@ -204,7 +204,7 @@ export function buildCheckoutOptions({
     callbackUrl,
 }) {
     return {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID,
         subscription_id: subscriptionId,
         name,
         description,

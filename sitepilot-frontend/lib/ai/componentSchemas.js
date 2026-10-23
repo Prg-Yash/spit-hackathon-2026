@@ -416,6 +416,40 @@ export const COMPONENT_SCHEMAS = {
       "paddingRight",
     ],
   },
+  ProductGrid: {
+    type: "ProductGrid",
+    allowedProps: {
+      title: { type: "string", required: false, default: "Featured Store Collection" },
+      subtitle: { type: "string", required: false, default: "Explore our premium hand-crafted products." },
+      badge: { type: "string", required: false, default: "ONLINE STORE" },
+      currency: { type: "string", required: false, default: "₹" },
+      theme: { type: "string", required: false, default: "dark" },
+      products: { type: "array", required: false, default: [] },
+    },
+    allowedStyles: ["backgroundColor", "textColor", "paddingTop", "paddingBottom"],
+  },
+  Pricing: {
+    type: "Pricing",
+    allowedProps: {
+      title: { type: "string", required: false, default: "Transparent, Predictable Pricing" },
+      subtitle: { type: "string", required: false, default: "Choose the plan that fits your growth." },
+      badge: { type: "string", required: false, default: "FLEXIBLE PLANS" },
+      currency: { type: "string", required: false, default: "₹" },
+      theme: { type: "string", required: false, default: "dark" },
+      plans: { type: "array", required: false, default: [] },
+    },
+    allowedStyles: ["backgroundColor", "textColor", "paddingTop", "paddingBottom"],
+  },
+  WhatsAppWidget: {
+    type: "WhatsAppWidget",
+    allowedProps: {
+      phoneNumber: { type: "string", required: false, default: "919876543210" },
+      message: { type: "string", required: false, default: "Hi! I am visiting your site." },
+      tooltip: { type: "string", required: false, default: "Chat with us on WhatsApp" },
+      position: { type: "string", required: false, default: "bottom-right" },
+    },
+    allowedStyles: [],
+  },
 };
 
 // ============================================================================

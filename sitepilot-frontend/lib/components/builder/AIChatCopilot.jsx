@@ -72,12 +72,12 @@ export default function AIChatCopilot({ tenantId, siteId }) {
     }
   }, [isOpen, isCollapsed, activeTab]);
 
-  // Auto-analyze for suggestions when open and on suggestions tab
+  // Auto-analyze for suggestions in background whenever panel is open
   useEffect(() => {
-    if (isOpen && activeTab === "suggestions" && !lastAnalyzed) {
+    if (isOpen && !lastAnalyzed) {
       analyzePage();
     }
-  }, [isOpen, activeTab, lastAnalyzed]);
+  }, [isOpen, lastAnalyzed]);
 
   async function analyzePage() {
     if (analyzing) return;
@@ -115,7 +115,11 @@ export default function AIChatCopilot({ tenantId, siteId }) {
       if (!res.ok) throw new Error(`Analysis failed`);
       const data = await res.json();
       
-      const validComponentTypes = ['Hero', 'CTA', 'Features', 'FormEmbed', 'Text', 'Heading', 'Image', 'Button', 'Gallery', 'Video', 'Navbar', 'Footer'];
+      const validComponentTypes = [
+        'Hero', 'CTA', 'Features', 'FormEmbed', 'Text', 'Heading',
+        'Image', 'Button', 'Gallery', 'Video', 'Navbar', 'Footer',
+        'ProductGrid', 'Pricing', 'WhatsAppWidget'
+      ];
       const validSuggestions = (data.suggestions || []).filter(s => {
         if (s.action?.type === 'add_component') return validComponentTypes.includes(s.action.componentType);
         return true;
@@ -219,6 +223,30 @@ export default function AIChatCopilot({ tenantId, siteId }) {
       addMessage({
         role: "assistant",
         content: "I'm having trouble connecting. Please check your internet and try again.",
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleQuickPrompt = async (promptText) => {
+    if (isSending || isStreaming) return;
+    setInputValue("");
+    setIsSending(true);
+
+    try {
+      addMessage({
+        role: "user",
+        content: promptText,
+      });
+
+      const context = buildContext();
+      await sendChatMessage(promptText, context);
+    } catch (error) {
+      console.error("Quick prompt error:", error);
+      addMessage({
+        role: "assistant",
+        content: "I encountered an error executing this request. Please try again.",
       });
     } finally {
       setIsSending(false);
@@ -476,10 +504,38 @@ export default function AIChatCopilot({ tenantId, siteId }) {
         aria-atomic="false"
       >
         {messages.length === 0 && (
-          <div className="text-center text-gray-500 text-sm py-8">
-            <Lightbulb className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p>Hi! I'm your AI assistant.</p>
-            <p className="mt-1">Ask me to add components, change styles, or modify your page.</p>
+          <div className="py-2 space-y-4">
+            <div className="text-center px-4 pt-2">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 text-white flex items-center justify-center mx-auto mb-3 shadow-lg shadow-purple-500/20">
+                <Sparkles className="w-6 h-6 animate-pulse" />
+              </div>
+              <h4 className="font-black text-sm uppercase tracking-tight text-gray-900">What would you like to build?</h4>
+              <p className="text-xs text-gray-500 mt-1">Tap a quick suggestion below or ask me anything:</p>
+            </div>
+
+            <div className="space-y-2 px-1">
+              <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 px-2">⚡ 1-Click Instant Actions</p>
+              <div className="grid grid-cols-1 gap-1.5">
+                {[
+                  { icon: "🛍️", title: "Add Featured Store & Razorpay Cart", prompt: "Add a Featured Store Collection with 3 flagship products and instant Razorpay checkout." },
+                  { icon: "💎", title: "Add 3-Tier Pricing Plans", prompt: "Add a transparent 3-tier Pricing Table with Starter (₹999), Pro (₹2499), and Enterprise (₹6999) plans." },
+                  { icon: "⚡", title: "Add Bento Grid Features Matrix", prompt: "Add a Bento Grid Features section highlighting performance, security, and developer speed with icons." },
+                  { icon: "🚀", title: "Add Dark Mode Hero Section", prompt: "Add a flagship dark mode Hero section with an attention-grabbing headline, neon badge, and dual CTAs." },
+                  { icon: "💬", title: "Add Floating WhatsApp Chat Widget", prompt: "Add a floating WhatsApp click-to-chat widget for direct customer inquiries." },
+                  { icon: "📝", title: "Add Contact & Lead Capture Form", prompt: "Add a lead capture contact form with Name, Email, and Message fields." },
+                ].map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleQuickPrompt(item.prompt)}
+                    disabled={isSending || isStreaming}
+                    className="flex items-center gap-2.5 p-2.5 rounded-xl border border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50/50 hover:shadow-sm text-left transition-all group active:scale-98"
+                  >
+                    <span className="text-base group-hover:scale-110 transition-transform shrink-0">{item.icon}</span>
+                    <span className="text-xs font-bold text-gray-800 leading-snug group-hover:text-purple-700">{item.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -494,26 +550,47 @@ export default function AIChatCopilot({ tenantId, siteId }) {
         {isStreaming && (
           <div className="flex items-center gap-2 text-gray-500 text-sm">
             <div className="flex gap-1">
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
             </div>
+            <span className="text-xs font-medium text-purple-600">Generating section...</span>
           </div>
         )}
 
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Quick Prompt Chips Bar */}
+      <div className="px-3 pt-2 pb-1 flex gap-1.5 overflow-x-auto border-t border-gray-100 bg-white">
+        {[
+          { label: "🛍️ Add Store", prompt: "Add a Featured Store Collection with 3 flagship products and Razorpay checkout." },
+          { label: "💎 Pricing", prompt: "Add a 3-tier pricing table with Starter, Pro, and Enterprise plans." },
+          { label: "⚡ Bento Grid", prompt: "Add a modern dark Bento Grid features section with icons." },
+          { label: "💬 WhatsApp", prompt: "Add a floating WhatsApp customer support chat widget." },
+          { label: "🚀 Hero CTA", prompt: "Add a modern dark Hero banner with glowing spotlight and dual CTAs." },
+        ].map((chip, idx) => (
+          <button
+            key={idx}
+            onClick={() => handleQuickPrompt(chip.prompt)}
+            disabled={isSending || isStreaming}
+            className="shrink-0 px-2.5 py-1 bg-gray-100 hover:bg-purple-100 hover:text-purple-800 text-gray-700 text-[11px] font-bold rounded-full transition-all border border-gray-200/60 active:scale-95"
+          >
+            {chip.label}
+          </button>
+        ))}
+      </div>
+
       {/* Input */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-3 border-t border-gray-100 bg-white">
         <div className="flex gap-2">
           <textarea
             ref={inputRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type a message..."
-            className="flex-1 resize-none border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Describe what you want to add or change..."
+            className="flex-1 resize-none border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
             rows={2}
             maxLength={1000}
             disabled={isSending || isStreaming}
@@ -522,13 +599,13 @@ export default function AIChatCopilot({ tenantId, siteId }) {
           <button
             onClick={handleSend}
             disabled={!inputValue.trim() || isSending || isStreaming}
-            className="self-end bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="self-end bg-gradient-to-r from-purple-600 to-pink-600 text-white p-2.5 rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md active:scale-95"
             aria-label="Send message"
           >
-            <Send className="w-5 h-5" />
+            <Send className="w-4 h-4" />
           </button>
         </div>
-        <div className="mt-1 text-xs text-gray-500 text-right">
+        <div className="mt-1 text-[10px] text-gray-400 text-right font-medium">
           {inputValue.length}/1000
         </div>
       </div>

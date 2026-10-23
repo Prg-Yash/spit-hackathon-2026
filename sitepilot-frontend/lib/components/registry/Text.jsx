@@ -1,10 +1,12 @@
 "use client";
 
 import { clsx } from "clsx";
+import useBuilderStore from "@/lib/stores/builderStore";
 
-export default function Text({ props, styles, isSelected, onClick }) {
-  const { content, variant = "p" } = props;
+export default function Text({ props = {}, styles = {}, isSelected, onClick, id }) {
+  const { content = "Enter your text here", variant = "p" } = props;
   const Component = variant;
+  const updateComponentProps = useBuilderStore((s) => s.updateComponentProps);
 
   const variantStyles = {
     h1: "text-4xl font-bold",
@@ -13,30 +15,38 @@ export default function Text({ props, styles, isSelected, onClick }) {
     h4: "text-xl font-semibold",
     h5: "text-lg font-medium",
     h6: "text-base font-medium",
-    p: "text-base",
+    p: "text-base leading-relaxed",
+  };
+
+  const handleBlur = (e) => {
+    if (id && updateComponentProps) {
+      updateComponentProps(id, { content: e.currentTarget.innerText });
+    }
   };
 
   return (
     <Component
       onClick={onClick}
+      contentEditable={isSelected}
+      suppressContentEditableWarning
+      onBlur={handleBlur}
       className={clsx(
-        variantStyles[variant],
-        isSelected && "ring-2 ring-blue-500",
+        variantStyles[variant] || "text-base",
+        "outline-none transition-all",
+        isSelected && "ring-2 ring-blue-500 rounded px-1"
       )}
       style={{
         paddingTop: styles?.paddingTop ? `${styles.paddingTop}px` : undefined,
-        paddingBottom: styles?.paddingBottom
-          ? `${styles.paddingBottom}px`
-          : undefined,
-        color: styles?.textColor || "#1f2937",
+        paddingBottom: styles?.paddingBottom ? `${styles.paddingBottom}px` : undefined,
+        color: styles?.textColor || "#4b5563",
         textAlign: styles?.textAlign || "left",
         backgroundColor: styles?.backgroundColor,
-        fontFamily: styles?.fontFamily || undefined, // Falls back to global via CSS inheritance
+        fontFamily: styles?.fontFamily || undefined,
         fontWeight: styles?.fontWeight || undefined,
         fontSize: styles?.fontSize ? `${styles.fontSize}px` : undefined,
       }}
     >
-      {content || "Enter your text here"}
+      {content}
     </Component>
   );
 }

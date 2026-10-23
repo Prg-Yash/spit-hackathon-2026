@@ -30,6 +30,8 @@ import {
   Settings2,
   ArrowLeft,
   Search,
+  Download,
+  CreditCard,
 } from "lucide-react";
 import useUIStore from "@/lib/stores/uiStore";
 import AIPageGenerator from "./AIPageGenerator";
@@ -360,6 +362,37 @@ export default function Toolbar({ saving: autoSaving, lastSaved, saveError, tena
   const [showAIGenerator, setShowAIGenerator] = useState(false);
   const [showHtmlImport, setShowHtmlImport] = useState(false);
   const [showSEOModal, setShowSEOModal] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportProject = async () => {
+    setIsExporting(true);
+    try {
+      const layout = getLayoutJSON();
+      const res = await fetch("/api/export-project", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          layoutJSON: layout,
+          siteName: layout?.site?.name || "sitepilot-next-app",
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to export Next.js project");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "sitepilot-next15-app.zip";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Export failed: " + err.message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleUndo = () => {
     if (canUndo) {
@@ -581,6 +614,22 @@ export default function Toolbar({ saving: autoSaving, lastSaved, saveError, tena
             <span className="hidden sm:inline">Import HTML</span>
           </button>
 
+          {/* Razorpay Gateway Quick Config */}
+          <button
+            onClick={() => {
+              if (tenantId && siteId) {
+                window.open(`/${tenantId}/sites/${siteId}/settings`, '_blank');
+              } else {
+                alert('Please open site settings to configure your Razorpay keys.');
+              }
+            }}
+            className="flex items-center justify-center gap-2 px-4 py-2 h-10 bg-white border border-gray-200 text-[#0b1411] text-[10px] font-black uppercase tracking-widest rounded-full hover:border-emerald-500 hover:text-emerald-700 transition-all shadow-sm hover:shadow-md active:scale-95"
+            title="Configure site payment gateway (Razorpay)"
+          >
+            <CreditCard size={14} className="text-emerald-600" />
+            <span className="hidden sm:inline">Razorpay</span>
+          </button>
+
 
 
           <div className="h-8 w-px bg-gray-200 mx-1" />
@@ -620,6 +669,16 @@ export default function Toolbar({ saving: autoSaving, lastSaved, saveError, tena
               <Save size={14} />
             )}
             {isSaving ? "Saving…" : saveStatus === "saved" ? "Saved!" : "Save"}
+          </button>
+
+          <button
+            onClick={handleExportProject}
+            disabled={isExporting}
+            className="flex items-center gap-2 px-5 py-2.5 h-10 bg-[#0b1411] text-[#d3ff4a] text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-black transition-all hover:scale-105 active:scale-95 shadow-md disabled:opacity-60"
+            title="Export full Next.js 15 Standalone source code + Dockerfile + K8s manifests (ZIP)"
+          >
+            {isExporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+            <span className="hidden sm:inline">Export Code & Docker</span>
           </button>
 
           <button

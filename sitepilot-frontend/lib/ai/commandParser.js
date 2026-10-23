@@ -38,19 +38,19 @@ export function parseAIResponse(responseText) {
   try {
     let cleanText = responseText;
     
-    // Try to extract JSON from markdown code block
-    const jsonMatch = responseText.match(/```json\s*\n([\s\S]*?)\n```/);
+    // Try to extract JSON from markdown code block (with or without 'json' language tag)
+    const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/i);
     if (jsonMatch) {
-        // Remove the JSON block from the visible text
-        cleanText = responseText.replace(/```json\s*\n[\s\S]*?\n```/, "").trim();
-        return parseJSONBlock(jsonMatch[1], cleanText);
+      // Remove the JSON block from the visible text
+      cleanText = responseText.replace(/```(?:json)?\s*[\s\S]*?```/i, "").trim();
+      return parseJSONBlock(jsonMatch[1].trim(), cleanText);
     }
 
-    // Try to find inline JSON object if no code block was used
-    const inlineMatch = responseText.match(/\{[\s\S]*?"actions"[\s\S]*?\}/);
-    if (inlineMatch && !responseText.includes("```")) {
-        cleanText = responseText.replace(inlineMatch[0], "").trim();
-        return parseJSONBlock(inlineMatch[0], cleanText);
+    // Try to find inline JSON object containing actions if no code block was used
+    const inlineMatch = responseText.match(/\{[\s\S]*?"actions"\s*:\s*\[[\s\S]*?\][\s\S]*?\}/);
+    if (inlineMatch) {
+      cleanText = responseText.replace(inlineMatch[0], "").trim();
+      return parseJSONBlock(inlineMatch[0].trim(), cleanText);
     }
 
     // No JSON found - treat as plain text response with no actions

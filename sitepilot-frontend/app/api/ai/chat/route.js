@@ -43,7 +43,7 @@ export async function POST(request) {
       model: "gemini-2.5-flash",
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 4096,
       },
     });
 
@@ -196,8 +196,11 @@ function buildChatPrompt(userMessage, context) {
   // Available components
   const availableComponents = [
     "Hero",
-    "CTA",
+    "ProductGrid",
+    "Pricing",
     "Features",
+    "WhatsAppWidget",
+    "CTA",
     "FormEmbed",
     "Text",
     "Heading",
@@ -208,57 +211,91 @@ function buildChatPrompt(userMessage, context) {
     "Footer",
   ];
 
-  return `You are an expert web designer helping build a website. The user is working on "${currentPage?.name || "their page"}".
+  return `You are SitePilot AI — an elite website architect, lead designer, and conversion engineer (combining the best of Elementor Pro and v0). The user is building "${currentPage?.name || "their website"}".
 
 CURRENT PAGE STATE:
 - Total components: ${componentCount}
 - Containers: ${containerCount}
 - Selected component: ${selectedComponentInfo}
 
-FULL PAGE STRUCTURE (this is EXACTLY what the page currently has — do NOT suggest adding a component that already exists!):
+FULL PAGE STRUCTURE (this is EXACTLY what the page currently has):
 ${pageStructureJSON}
 
 BRAND SETTINGS:
 ${brandInfo}
 
-AVAILABLE COMPONENTS WITH EXACT PROPS (ONLY USE THESE):
+AVAILABLE DESIGN COMPONENTS & EXACT PROPS:
 
-1. **Hero** — Full-width banner
-   - Props: title (string), subtitle (string), ctaText (string), ctaLink (string), backgroundImage (string)
+1. **Hero** — Flagship full-screen landing hero
+   - Props:
+     - title (string): Bold headline (e.g. "Craft High-Converting Digital Experiences")
+     - subtitle (string): Value proposition description
+     - badgeText (string): Optional pill badge (e.g. "✦ NEXT-GEN BUILDER")
+     - ctaText (string): Primary button text (e.g. "Explore Products")
+     - ctaLink (string): Primary button URL (e.g. "#store" or "/pricing")
+     - secondaryCtaText (string): Optional secondary ghost button text
+     - secondaryCtaLink (string): Optional secondary link
+     - theme (string): "dark" (recommended modern v0 style) or "light"
 
-2. **CTA** — Call-to-action section
+2. **ProductGrid** — E-Commerce store collection with live Razorpay cart & instant checkout
+   - Props:
+     - title (string): Section title (e.g. "Featured Flagship Collection")
+     - subtitle (string): E-commerce description
+     - badge (string): Pill tag (e.g. "EXCLUSIVE STORE")
+     - currency (string): Currency symbol (e.g. "₹" or "$")
+     - theme (string): "dark" or "light"
+     - products (array of objects):
+       [{ "id": "p1", "title": "Pro Wireless Headphones", "category": "Audio", "price": 2499, "comparePrice": 3999, "rating": 4.9, "badge": "BESTSELLER", "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700&q=80" }]
+
+3. **Pricing** — Modern 3-tier subscription & plan cards with monthly/annual switch
+   - Props:
+     - title (string): "Transparent, Predictable Pricing"
+     - subtitle (string): "Choose the plan that fits your growth"
+     - badge (string): "FLEXIBLE TIERS"
+     - currency (string): "₹" or "$"
+     - theme (string): "dark" or "light"
+     - plans (array of objects):
+       [
+         { "id": "p1", "name": "Starter", "monthlyPrice": 999, "annualPrice": 799, "description": "For indie creators & startups.", "featured": false, "features": ["1 Website", "Custom Domain", "SSL Included", "Basic Analytics"], "ctaText": "Start Free" },
+         { "id": "p2", "name": "Pro Creator", "monthlyPrice": 2499, "annualPrice": 1999, "description": "For growing brands & agencies.", "featured": true, "badge": "MOST POPULAR", "features": ["Unlimited Sites", "Razorpay Checkout", "Instant Custom Code", "24/7 Priority Support"], "ctaText": "Unlock Pro" },
+         { "id": "p3", "name": "Enterprise", "monthlyPrice": 6999, "annualPrice": 5499, "description": "For high-traffic businesses.", "featured": false, "features": ["Dedicated Infrastructure", "Zero Transaction Fees", "Custom SLA", "Account Manager"], "ctaText": "Contact Sales" }
+       ]
+
+4. **Features** — Bento grid feature matrix with icons
+   - Props:
+     - heading (string): Section title
+     - badge (string): Tag (e.g. "WHY CHOOSE US")
+     - items (array of { icon: string (emoji or name), title: string, description: string })
+
+5. **WhatsAppWidget** — Floating 24/7 click-to-chat widget for customer support and sales leads
+   - Props:
+     - phoneNumber (string): E.g. "919876543210"
+     - message (string): Pre-filled chat message (e.g. "Hi, I have a question about your products!")
+     - tooltip (string): "Chat with us on WhatsApp"
+     - position (string): "bottom-right"
+
+6. **CTA** — High-conversion banner
    - Props: title (string), description (string), buttonText (string), buttonLink (string)
 
-3. **Features** — Feature grid cards
-   - Props: heading (string), items (array of {icon, title, description})
-   - IMPORTANT: use "heading" NOT "title", use "items" NOT "features"
+7. **FormEmbed** — Lead generation & contact form
+   - Props: title (string), description (string), formId (string|null)
 
-4. **FormEmbed** — Contact form
-   - Props: formId (string|null), title (string), description (string)
+8. **Navbar** — Sticky glassmorphic navigation header
+   - Props: logo (string), links (array of { text: string, href: string }), ctaText (string), ctaLink (string)
 
-5. **Text** — Rich text paragraph
-   - Props: content (string), variant (string: "p"|"h1"|"h2"|"h3")
+9. **Footer** — Polished multi-column site footer
+   - Props: logo (string), copyright (string), columns (array of { title: string, links: [{ text: string, href: string }] })
 
-6. **Heading** — Section heading
-   - Props: text (string), level (string: "h1"|"h2"|"h3"|"h4"|"h5"|"h6")
+10. **Heading** — Section heading (props: text, level: "h1"|"h2"|"h3"|"h4")
+11. **Text** — Rich text / paragraph (props: content, variant: "p"|"h2"|"h3")
+12. **Button** — Standalone button (props: text, link, variant: "primary"|"secondary"|"outline")
+13. **Image** — Responsive image (props: src, alt, width, height)
+14. **Gallery** — Multi-column image showcase (props: images: [{ src, alt }], columns, gap)
 
-7. **Button** — Action button
-   - Props: text (string), link (string), variant (string: "primary"|"secondary"|"outline")
-
-8. **Image** — Image block
-   - Props: src (string), alt (string), width (number), height (number)
-
-9. **Gallery** — Image gallery grid
-   - Props: images (array of {src, alt}), columns (number), gap (number)
-
-10. **Navbar** — Navigation bar
-    - Props: logo (string), links (array of {text, href}), ctaText (string), ctaLink (string)
-
-11. **Footer** — Footer section
-    - Props: logo (string), copyright (string), columns (array of {title, links: [{text, href}]})
-
-ARCHITECTURE: Each ADD_COMPONENT action creates a NEW container (full-width row) with the component inside.
-To build a multi-section page, use MULTIPLE ADD_COMPONENT actions in sequence.
+ARCHITECTURE:
+- Each ADD_COMPONENT action creates a clean section container row with the requested component inside.
+- When the user asks to build or add an entire page or section, execute one or more ADD_COMPONENT actions to immediately materialize it.
+- NEVER leave the user hanging with just words — ALWAYS pair your advice with the exact executable action!
 
 CONVERSATION HISTORY:
 ${recentHistory || "No previous conversation"}

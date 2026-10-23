@@ -12,6 +12,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import CanvasRenderer from "../canvas/CanvasRenderer";
 import CursorLayer from "@/components/builder/CursorLayer";
+import CartDrawer from "@/components/builder/CartDrawer";
 import useBuilderStore from "@/lib/stores/builderStore";
 import useUIStore from "@/lib/stores/uiStore";
 import useHistoryStore from "@/lib/stores/historyStore";
@@ -244,6 +245,9 @@ export default function CanvasArea() {
           />
         </div>
       </div>
+
+      {/* Global E-Commerce Cart Drawer */}
+      <CartDrawer />
     </div>
   );
 }

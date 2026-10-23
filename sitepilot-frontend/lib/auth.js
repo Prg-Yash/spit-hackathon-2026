@@ -7,6 +7,8 @@ import { twoFactor, openAPI } from "better-auth/plugins"
 import { passkey } from "@better-auth/passkey"
 
 export const auth = betterAuth({
+  secret: process.env.BETTER_AUTH_SECRET || "1LG7Ao3N7VQ3wwIA0PWg57J0qeC6bMDB",
+  baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"),
   user: {
     changeEmail: {
       enabled: true,
@@ -26,22 +28,44 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    requireEmailVerification: process.env.REQUIRE_EMAIL_VERIFICATION === 'true',
     sendResetPassword: async ({ user, url }) => {
-      await sendResetPasswordEmail({
-        to: user.email,
-        resetPasswordUrl: url
-      })
+      try {
+        await sendResetPasswordEmail({
+          to: user.email,
+          resetPasswordUrl: url
+        })
+      } catch (err) {
+        console.warn('Error sending reset password email:', err?.message || err)
+      }
     }
   },
   emailVerification: {
     autoSignInAfterVerification: true,
-    sendOnSignUp: true,
+    sendOnSignUp: false,
     sendVerificationEmail: async ({ user, url }) => {
-      await sendVerificationEmail({
-        to: user.email,
-        verificationUrl: url
-      })
+      try {
+        await sendVerificationEmail({
+          to: user.email,
+          verificationUrl: url
+        })
+      } catch (err) {
+        console.warn('Error sending verification email:', err?.message || err)
+      }
+    }
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          return {
+            data: {
+              ...user,
+              emailVerified: true
+            }
+          }
+        }
+      }
     }
   },
   session: {

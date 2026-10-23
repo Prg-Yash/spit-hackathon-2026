@@ -36,6 +36,9 @@ import {
   Layers,
   Plus,
   Palette,
+  ShoppingBag,
+  CreditCard,
+  MessageCircle,
 } from "lucide-react";
 import useBuilderStore from "@/lib/stores/builderStore";
 import useHistoryStore from "@/lib/stores/historyStore";
@@ -83,6 +86,11 @@ const elementLibrary = {
     { type: "Label", icon: Type, label: "Label" },
     { type: "Checkbox", icon: CheckSquare, label: "Checkbox" },
     { type: "Radio", icon: Circle, label: "Radio" },
+  ],
+  "E-Commerce & Store": [
+    { type: "ProductGrid", icon: ShoppingBag, label: "Product Grid" },
+    { type: "Pricing", icon: CreditCard, label: "Pricing Table" },
+    { type: "WhatsAppWidget", icon: MessageCircle, label: "WhatsApp Chat" },
   ],
   "Pre-built Sections": [
     { type: "Hero", icon: Layout, label: "Hero" },

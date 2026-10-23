@@ -28,7 +28,8 @@ import {
   CheckCircle2,
   RotateCcw,
   Rocket,
-  Settings
+  Settings,
+  CreditCard
 } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -337,6 +338,194 @@ function PublishModal({ siteId, onClose, onSuccess }) {
   );
 }
 
+// ─── Connect Razorpay Modal ───────────────────────────────────────────────────
+
+function ConnectRazorpayModal({ siteId, siteName, gatewayStatus, onClose, onUpdated }) {
+  const [keyId, setKeyId] = useState("");
+  const [keySecret, setKeySecret] = useState("");
+  const [merchantName, setMerchantName] = useState(gatewayStatus?.merchantName || siteName || "");
+  const [loading, setLoading] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleConnect = async (e) => {
+    if (e) e.preventDefault();
+    if (!keyId.trim() || !keySecret.trim()) {
+      setError("Please provide both Razorpay Key ID and Key Secret.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/sites/${siteId}/payment-gateway`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          keyId: keyId.trim(),
+          keySecret: keySecret.trim(),
+          merchantName: merchantName.trim() || siteName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Connection failed");
+      setSuccess(data.message || "Razorpay verified and connected successfully!");
+      if (onUpdated) onUpdated({ connected: true, ...data.gateway });
+      setTimeout(() => {
+        onClose();
+      }, 1400);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!confirm("Disconnect Razorpay from this website?")) return;
+    setDisconnecting(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/sites/${siteId}/payment-gateway`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to disconnect");
+      setSuccess("Razorpay disconnected.");
+      if (onUpdated) onUpdated({ connected: false });
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4">
+      <div className="bg-white border border-gray-200 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#0b1411] flex items-center justify-center text-[#d3ff4a]">
+              <CreditCard size={18} />
+            </div>
+            <div>
+              <h2 className="text-base font-black text-[#0b1411] uppercase tracking-tight">Connect Razorpay Gateway</h2>
+              <p className="text-xs text-gray-500 font-medium">Accept customer payments directly into your account</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {gatewayStatus?.connected ? (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-emerald-600" />
+                  <span className="text-xs font-black uppercase tracking-wider text-emerald-800">Connected & Verified</span>
+                </div>
+                <p className="text-sm font-bold text-gray-900 mt-1">{gatewayStatus.merchantName || siteName}</p>
+                <p className="text-xs font-mono text-gray-500">{gatewayStatus.keyIdMasked}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+                className="px-3 py-1.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold rounded-xl transition-colors"
+              >
+                {disconnecting ? "Disconnecting..." : "Disconnect"}
+              </button>
+            </div>
+          ) : (
+            <div className="p-4 bg-amber-50/70 border border-amber-200/70 rounded-2xl flex items-start gap-3">
+              <CreditCard className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                Connect your business Razorpay API Keys so customer orders on your site go directly into your account with live checkout and tracking.
+              </p>
+            </div>
+          )}
+
+          <form onSubmit={handleConnect} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                Business / Store Name
+              </label>
+              <input
+                type="text"
+                value={merchantName}
+                onChange={(e) => setMerchantName(e.target.value)}
+                placeholder="e.g. My Online Store"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 text-sm font-semibold rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0b1411]/20 focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                Razorpay Key ID <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={keyId}
+                onChange={(e) => setKeyId(e.target.value)}
+                placeholder="rzp_test_... or rzp_live_..."
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 text-sm font-mono rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0b1411]/20 focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                Razorpay Key Secret <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                value={keySecret}
+                onChange={(e) => setKeySecret(e.target.value)}
+                placeholder="Enter your Razorpay Key Secret"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 text-sm font-mono rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0b1411]/20 focus:bg-white"
+              />
+            </div>
+
+            {error && (
+              <div className="flex items-start gap-2 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                <AlertCircle size={15} className="mt-0.5 shrink-0" />
+                {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="flex items-start gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+                <CheckCircle2 size={15} className="mt-0.5 shrink-0" />
+                {success}
+              </div>
+            )}
+
+            <div className="pt-2 flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-3 border border-gray-200 text-gray-700 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 py-3 bg-[#0b1411] text-[#d3ff4a] text-xs font-black uppercase tracking-wider rounded-xl hover:bg-black transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {loading ? <Loader2 size={15} className="animate-spin" /> : <CreditCard size={15} />}
+                {loading ? "Verifying with Razorpay..." : "Test & Connect"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page Component ───────────────────────────────────────────────────────────
 
 export default function SiteDetailPage() {
@@ -350,6 +539,8 @@ export default function SiteDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showPublishModal, setShowPublishModal] = useState(false);
+  const [showRazorpayModal, setShowRazorpayModal] = useState(false);
+  const [gatewayStatus, setGatewayStatus] = useState(null);
 
   const [fetchedSiteId, setFetchedSiteId] = useState(null);
 
@@ -360,10 +551,11 @@ export default function SiteDetailPage() {
     if (!params.siteId) return;
     setLoading(true);
     try {
-      const [siteRes, depRes, analyticsRes] = await Promise.all([
+      const [siteRes, depRes, analyticsRes, gwRes] = await Promise.all([
         fetch(`/api/sites/${params.siteId}`),
         fetch(`/api/sites/${params.siteId}/deployments`),
-        fetch(`/api/sites/${params.siteId}/analytics`)
+        fetch(`/api/sites/${params.siteId}/analytics`),
+        fetch(`/api/sites/${params.siteId}/payment-gateway`).catch(() => null),
       ]);
 
       if (!siteRes.ok) throw new Error((await siteRes.json()).error || "Failed to load site");
@@ -380,6 +572,11 @@ export default function SiteDetailPage() {
         if (data.success) {
           setAnalytics(data);
         }
+      }
+
+      if (gwRes && gwRes.ok) {
+        const gwData = await gwRes.json();
+        setGatewayStatus(gwData);
       }
     } catch (err) {
       setError(err.message);
@@ -499,26 +696,38 @@ export default function SiteDetailPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
               <button
                 onClick={() => router.push(`/${params.tenantId}/sites/${params.siteId}/pages`)}
-                className="w-full sm:w-auto bg-[#d3ff4a] text-[#0b1411] h-14 px-8 rounded-full font-bold flex items-center justify-center hover:bg-[#c0eb3f] transition-all active:scale-95 shadow-[0_0_20px_rgba(211,255,74,0.3)] hover:scale-105 duration-200 uppercase tracking-widest text-xs"
+                className="bg-[#d3ff4a] text-[#0b1411] h-12 px-6 rounded-full font-bold flex items-center justify-center hover:bg-[#c0eb3f] transition-all active:scale-95 shadow-[0_0_20px_rgba(211,255,74,0.3)] hover:scale-105 duration-200 uppercase tracking-widest text-xs"
               >
                 <LayoutTemplate size={16} className="mr-2" />
                 Manage Pages
               </button>
               <button
-                onClick={() => router.push(`/${params.tenantId}/sites/${params.siteId}/settings`)}
-                className="inline-flex items-center justify-center px-5 py-2.5 bg-white border border-gray-200 text-[#0b1411] text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors focus:outline-none shadow-sm"
+                onClick={() => setShowRazorpayModal(true)}
+                className={`h-12 px-5 rounded-full font-bold flex items-center justify-center transition-all active:scale-95 duration-200 uppercase tracking-widest text-xs shadow-sm ${
+                  gatewayStatus?.connected
+                    ? 'bg-emerald-50 text-emerald-800 border-2 border-emerald-400 hover:bg-emerald-100'
+                    : 'bg-[#0b1411] text-[#d3ff4a] hover:bg-black hover:scale-105 shadow-[0_0_15px_rgba(211,255,74,0.25)]'
+                }`}
+                title="Connect business Razorpay payment gateway"
               >
-                <Settings size={16} className="mr-2" />
+                <CreditCard size={15} className={`mr-2 ${gatewayStatus?.connected ? 'text-emerald-600' : 'text-[#d3ff4a]'}`} />
+                {gatewayStatus?.connected ? 'Razorpay Connected ✓' : 'Connect Razorpay'}
+              </button>
+              <button
+                onClick={() => router.push(`/${params.tenantId}/sites/${params.siteId}/settings`)}
+                className="inline-flex items-center justify-center h-12 px-5 bg-white border border-gray-200 text-[#0b1411] text-xs font-bold uppercase tracking-widest rounded-full hover:bg-gray-50 transition-colors focus:outline-none shadow-sm"
+              >
+                <Settings size={15} className="mr-2" />
                 Settings
               </button>
               <button
                 onClick={() => setShowPublishModal(true)}
-                className="inline-flex items-center justify-center px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 shadow-sm shadow-indigo-500/20"
+                className="inline-flex items-center justify-center h-12 px-6 bg-indigo-600 text-white text-xs font-bold uppercase tracking-widest rounded-full hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 shadow-md shadow-indigo-500/20"
               >
-                <Rocket size={16} className="mr-2" />
+                <Rocket size={15} className="mr-2" />
                 Publish Site
               </button>
             </div>
@@ -631,6 +840,63 @@ export default function SiteDetailPage() {
 
             {/* Custom Domains Section */}
             <CustomDomainManager siteId={params.siteId} siteSlug={site.slug} />
+
+            {/* Payment Gateway (Razorpay) Section */}
+            <div className="bg-white border border-gray-100 rounded-[2rem] p-6 lg:p-8 shadow-sm hover:border-[#8bc4b1] transition-all">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                    <CreditCard className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-[#0b1411] uppercase tracking-wider">Payment Gateway (Razorpay)</h3>
+                    <p className="text-xs text-gray-500 font-medium">Accept customer orders & checkout payments directly into your account</p>
+                  </div>
+                </div>
+                {gatewayStatus?.connected ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <CheckCircle2 size={13} />
+                    VERIFIED & ACTIVE
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                    NOT CONNECTED
+                  </span>
+                )}
+              </div>
+
+              {gatewayStatus?.connected ? (
+                <div className="bg-[#f7faf8] border border-emerald-500/20 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Active Merchant Account</p>
+                    <p className="text-sm font-black text-[#0b1411]">
+                      {gatewayStatus.merchantName || site.name} <span className="font-mono text-gray-500 font-normal">({gatewayStatus.keyIdMasked})</span>
+                    </p>
+                    <p className="text-xs text-emerald-600 mt-1 font-medium">✓ Direct customer payouts enabled for store products & orders</p>
+                  </div>
+                  <button
+                    onClick={() => setShowRazorpayModal(true)}
+                    className="px-4 py-2 text-xs font-bold bg-white border border-gray-200 text-[#0b1411] rounded-xl hover:bg-gray-50 transition-colors shadow-sm whitespace-nowrap"
+                  >
+                    Configure Gateway &rarr;
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200/60 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-bold text-[#0b1411] mb-1">Ready to receive customer payments?</p>
+                    <p className="text-xs text-gray-500">Connect your Razorpay Key ID and Secret to collect revenue directly into your bank.</p>
+                  </div>
+                  <button
+                    onClick={() => setShowRazorpayModal(true)}
+                    className="px-5 py-2.5 bg-[#0b1411] text-[#d3ff4a] text-xs font-black uppercase tracking-wider rounded-xl hover:bg-black transition-all shadow-md flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <CreditCard size={14} className="text-[#d3ff4a]" />
+                    Connect Razorpay
+                  </button>
+                </div>
+              )}
+            </div>
 
           </div>
         </div>
@@ -781,6 +1047,16 @@ export default function SiteDetailPage() {
           siteId={site.id}
           onClose={() => setShowPublishModal(false)}
           onSuccess={handlePublishSuccess}
+        />
+      )}
+
+      {showRazorpayModal && site && (
+        <ConnectRazorpayModal
+          siteId={site.id}
+          siteName={site.name}
+          gatewayStatus={gatewayStatus}
+          onClose={() => setShowRazorpayModal(false)}
+          onUpdated={(updated) => setGatewayStatus(updated)}
         />
       )}
     </div>

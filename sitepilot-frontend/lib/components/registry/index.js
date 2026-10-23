@@ -38,7 +38,17 @@ import Checkbox from "./Checkbox";
 import Radio from "./Radio";
 import FormEmbed from "./FormEmbed";
 
+// E-Commerce & Interactive components
+import ProductGrid from "./ProductGrid";
+import Pricing from "./Pricing";
+import WhatsAppWidget from "./WhatsAppWidget";
+
 export const componentRegistry = {
+  // E-Commerce & Commercial
+  ProductGrid,
+  Pricing,
+  WhatsAppWidget,
+
   // Hero & Features
   Hero,
   Features,
@@ -235,5 +245,25 @@ export const defaultComponentProps = {
     formId: null,
     formName: "Select a form",
     showTitle: true,
+  },
+  ProductGrid: {
+    title: "Featured Store Collection",
+    subtitle: "Explore our premium hand-crafted products with instant delivery and secure Razorpay checkout.",
+    badge: "ONLINE STORE",
+    currency: "₹",
+    theme: "dark",
+  },
+  Pricing: {
+    title: "Transparent, Predictable Pricing",
+    subtitle: "Choose the plan that fits your growth. Switch or cancel anytime with zero friction.",
+    badge: "FLEXIBLE PLANS",
+    currency: "₹",
+    theme: "dark",
+  },
+  WhatsAppWidget: {
+    phoneNumber: "919876543210",
+    message: "Hi! I am visiting your site and would like more information.",
+    tooltip: "Chat with us on WhatsApp",
+    position: "bottom-right",
   },
 };

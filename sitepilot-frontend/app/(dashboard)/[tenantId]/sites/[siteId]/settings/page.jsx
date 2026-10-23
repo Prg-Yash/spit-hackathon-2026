@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Upload, Loader2, Check, X, Palette, Type, Globe, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Upload, Loader2, Check, X, Palette, Type, Globe, Image as ImageIcon, CreditCard, ShieldCheck, Key, RefreshCw, CheckCircle2, AlertTriangle, Unlink } from 'lucide-react';
 
 const GOOGLE_FONTS = [
   'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Oswald', 'Source Sans Pro',
@@ -29,6 +29,14 @@ export default function SiteSettingsPage() {
   const [siteTitle, setSiteTitle] = useState('');
   const [favicon, setFavicon] = useState(''); // S3 key
   const [faviconDisplayUrl, setFaviconDisplayUrl] = useState(''); // presigned URL for display
+
+  // Payment Gateway (Razorpay)
+  const [gatewayStatus, setGatewayStatus] = useState(null);
+  const [keyIdInput, setKeyIdInput] = useState('');
+  const [keySecretInput, setKeySecretInput] = useState('');
+  const [merchantNameInput, setMerchantNameInput] = useState('');
+  const [verifyingGateway, setVerifyingGateway] = useState(false);
+  const [gatewayMsg, setGatewayMsg] = useState({ type: '', text: '' });
 
   // Global Colors
   const [colorMode, setColorMode] = useState('brandkit'); // 'brandkit' or 'custom'
@@ -101,9 +109,71 @@ export default function SiteSettingsPage() {
     }
   }, [siteId, tenantId]);
 
+  // Load gateway status
+  const fetchGateway = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/sites/${siteId}/payment-gateway`);
+      if (res.ok) {
+        const data = await res.json();
+        setGatewayStatus(data);
+        if (data.merchantName) setMerchantNameInput(data.merchantName);
+      }
+    } catch (e) {
+      console.warn('Failed to load gateway:', e);
+    }
+  }, [siteId]);
+
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    fetchGateway();
+  }, [fetchData, fetchGateway]);
+
+  // Connect & Verify Razorpay
+  const handleConnectRazorpay = async () => {
+    if (!keyIdInput.trim() || !keySecretInput.trim()) {
+      setGatewayMsg({ type: 'error', text: 'Both Key ID and Key Secret are required.' });
+      return;
+    }
+    setVerifyingGateway(true);
+    setGatewayMsg({ type: '', text: '' });
+    try {
+      const res = await fetch(`/api/sites/${siteId}/payment-gateway`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keyId: keyIdInput.trim(),
+          keySecret: keySecretInput.trim(),
+          merchantName: merchantNameInput.trim() || siteTitle || site?.name,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setGatewayMsg({ type: 'error', text: data.error || 'Verification failed.' });
+      } else {
+        setGatewayMsg({ type: 'success', text: data.message });
+        setGatewayStatus({ connected: true, ...data.gateway });
+        setKeySecretInput('');
+      }
+    } catch (err) {
+      setGatewayMsg({ type: 'error', text: err.message || 'Verification error' });
+    } finally {
+      setVerifyingGateway(false);
+    }
+  };
+
+  // Disconnect Razorpay
+  const handleDisconnectRazorpay = async () => {
+    if (!confirm('Are you sure you want to disconnect Razorpay from this website?')) return;
+    try {
+      const res = await fetch(`/api/sites/${siteId}/payment-gateway`, { method: 'DELETE' });
+      if (res.ok) {
+        setGatewayStatus({ connected: false });
+        setGatewayMsg({ type: 'success', text: 'Razorpay disconnected successfully.' });
+      }
+    } catch (e) {
+      console.error('Error disconnecting:', e);
+    }
+  };
 
   // Load Google Fonts dynamically
   useEffect(() => {
@@ -492,6 +562,152 @@ export default function SiteSettingsPage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* ─── Payment Gateway (Razorpay) ──────────────────────────────── */}
+          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-[#0b1411] uppercase tracking-tight">Payment Gateway (Razorpay)</h2>
+                  <p className="text-xs text-gray-500 font-medium">Connect your business account to receive customer payments directly</p>
+                </div>
+              </div>
+
+              {gatewayStatus?.connected && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <CheckCircle2 size={13} />
+                  VERIFIED & ACTIVE
+                </span>
+              )}
+            </div>
+
+            {/* Status Message */}
+            {gatewayMsg.text && (
+              <div className={`p-4 rounded-xl mb-6 text-sm font-semibold flex items-center gap-2 ${
+                gatewayMsg.type === 'error'
+                  ? 'bg-red-50 text-red-700 border border-red-200'
+                  : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              }`}>
+                {gatewayMsg.type === 'error' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+                <span>{gatewayMsg.text}</span>
+              </div>
+            )}
+
+            {gatewayStatus?.connected ? (
+              /* Connected View */
+              <div className="p-6 bg-[#f7faf8] border-2 border-emerald-500/20 rounded-2xl">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Account Merchant</label>
+                    <p className="text-base font-black text-[#0b1411]">{gatewayStatus.merchantName || siteTitle || site?.name}</p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Razorpay Key ID</label>
+                    <p className="text-sm font-mono font-bold text-gray-700">{gatewayStatus.keyIdMasked || '••••••••'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Gateway Status</label>
+                    <p className="text-sm font-bold text-emerald-600 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Direct Payouts Enabled
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-200/60 flex items-center justify-between">
+                  <p className="text-xs text-gray-500">
+                    All product purchases and subscriptions on <span className="font-bold text-[#0b1411]">{site?.name}</span> are processed directly by your Razorpay account.
+                  </p>
+                  <button
+                    onClick={handleDisconnectRazorpay}
+                    className="px-4 py-2 text-xs font-black uppercase tracking-wider text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-xl transition-all flex items-center gap-1.5"
+                  >
+                    <Unlink size={13} />
+                    Disconnect Gateway
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Connect Form */
+              <div className="space-y-5">
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Enter your Razorpay API credentials from your <a href="https://dashboard.razorpay.com/#/app/keys" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-semibold hover:text-indigo-800">Razorpay Dashboard &rarr; Settings &rarr; API Keys</a>.
+                  SitePilot will verify the credentials in real-time before activating.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-xs font-black text-[#0b1411] uppercase tracking-wider mb-2">
+                      Razorpay Key ID <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Key className="absolute left-3.5 top-3.5 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={keyIdInput}
+                        onChange={(e) => setKeyIdInput(e.target.value)}
+                        placeholder="rzp_test_..."
+                        className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl font-mono text-sm focus:border-[#0b1411] focus:outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-[#0b1411] uppercase tracking-wider mb-2">
+                      Razorpay Key Secret <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <ShieldCheck className="absolute left-3.5 top-3.5 w-4 h-4 text-gray-400" />
+                      <input
+                        type="password"
+                        value={keySecretInput}
+                        onChange={(e) => setKeySecretInput(e.target.value)}
+                        placeholder="••••••••••••••••"
+                        className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl font-mono text-sm focus:border-[#0b1411] focus:outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-[#0b1411] uppercase tracking-wider mb-2">
+                    Business / Store Display Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={merchantNameInput}
+                    onChange={(e) => setMerchantNameInput(e.target.value)}
+                    placeholder={siteTitle || site?.name || "e.g. My Premium Store"}
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-semibold focus:border-[#0b1411] focus:outline-none transition-colors"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center gap-3">
+                  <button
+                    onClick={handleConnectRazorpay}
+                    disabled={verifyingGateway}
+                    className="px-6 py-3 bg-[#0b1411] hover:bg-black text-[#d3ff4a] font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {verifyingGateway ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-[#d3ff4a]" />
+                        <span>Verifying with Razorpay...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4 text-[#d3ff4a]" />
+                        <span>Connect & Verify Razorpay</span>
+                      </>
+                    )}
+                  </button>
+                  <span className="text-xs text-gray-400 font-medium">Test & Live keys supported</span>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>

@@ -506,6 +506,13 @@ function DashboardContent() {
         return
       }
 
+      if (data.demo) {
+        await fetchUserSubscription()
+        await fetchTenants()
+        setShowPricing(false)
+        return
+      }
+
       const { checkoutOptions } = data
       if (!checkoutOptions) {
         setSubError('Checkout configuration missing')

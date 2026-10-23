@@ -1,4 +1,6 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# SitePilot Frontend
+
+> For the comprehensive **SitePilot Next-Level Architectural Blueprint & Roadmap** (v0-grade animations, Elementor-style visual CMS, WooCommerce headless store, and Kubernetes containerization), see the root **[README.md](../README.md)**.
 
 ## Getting Started
 

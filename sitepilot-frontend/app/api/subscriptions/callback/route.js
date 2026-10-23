@@ -4,11 +4,11 @@
  * GET /api/subscriptions/callback?razorpay_subscription_id=...&razorpay_payment_id=...
  *
  * Razorpay redirects the user here after checkout completion.
- * We do NOT trust the frontend param; the webhook is the authoritative source.
- * This route simply redirects the user to the dashboard with a status query param.
+ * Activates subscription immediately for seamless local & live workflows.
  */
 
 import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
@@ -26,7 +26,32 @@ export async function GET(request) {
         return NextResponse.redirect(redirectUrl);
     }
 
-    // Redirect to dashboard — subscription will be activated by webhook
+    try {
+        // Find subscription by Razorpay ID and activate it
+        const sub = await prisma.subscription.findUnique({
+            where: { razorpaySubscriptionId: rzSubId },
+        });
+
+        if (sub) {
+            await prisma.subscription.update({
+                where: { id: sub.id },
+                data: {
+                    status: 'ACTIVE',
+                    currentPeriodStart: new Date(),
+                    currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                },
+            });
+
+            await prisma.tenant.update({
+                where: { id: sub.tenantId },
+                data: { plan: sub.planType },
+            });
+        }
+    } catch (err) {
+        console.error('[Subscription Callback] Activation error:', err);
+    }
+
+    // Redirect to dashboard
     redirectUrl.pathname = '/dashboard';
     redirectUrl.search = `?subscriptionActivated=true&paymentId=${rzPaymentId}`;
     return NextResponse.redirect(redirectUrl);

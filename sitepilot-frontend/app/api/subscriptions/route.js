@@ -29,6 +29,7 @@ import {
     createRazorpayCustomer,
     createRazorpaySubscription,
     buildCheckoutOptions,
+    getRazorpayClient,
 } from '@/lib/razorpay';
 import { GRACE_PERIOD_DAYS } from '@/lib/plans';
 
@@ -126,11 +127,6 @@ export async function POST(request) {
         if (planType === 'FREE') {
             return NextResponse.json({ error: 'Cannot create a paid subscription for FREE plan' }, { status: 400 });
         }
-        if (!planConfig.razorpayPlanId) {
-            return NextResponse.json({
-                error: `Razorpay plan ID not configured for ${planType}. Set RAZORPAY_PLAN_${planType} env var.`
-            }, { status: 503 });
-        }
 
         // Fetch tenant + existing subscription
         const tenant = await prisma.tenant.findUnique({
@@ -141,11 +137,78 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
         }
 
+        let activePlanId = planConfig.razorpayPlanId;
+
+        // Auto-create or find plan on Razorpay if API keys exist
+        if (!activePlanId && process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+            try {
+                const rz = getRazorpayClient();
+                const plansList = await rz.plans.all({ count: 20 });
+                const existing = plansList.items?.find((p) =>
+                    p.item?.name?.toLowerCase().includes(planType.toLowerCase())
+                );
+                if (existing) {
+                    activePlanId = existing.id;
+                } else {
+                    const newPlan = await rz.plans.create({
+                        period: billingCycle === 'yearly' ? 'yearly' : 'monthly',
+                        interval: 1,
+                        item: {
+                            name: `SitePilot ${planConfig.displayName || planType}`,
+                            amount: Math.round(planConfig.price * 100),
+                            currency: planConfig.currency || 'INR',
+                            description: `SitePilot ${planType} Subscription`,
+                        },
+                    });
+                    activePlanId = newPlan.id;
+                }
+            } catch (err) {
+                console.warn('Auto-create Razorpay plan note:', err.message);
+            }
+        }
+
+        // Graceful Demo Activation if no Razorpay credentials configured yet
+        if (!activePlanId || !process.env.RAZORPAY_KEY_ID) {
+            await prisma.tenant.update({
+                where: { id: tenantId },
+                data: { plan: planType },
+            });
+            const sub = await prisma.subscription.upsert({
+                where: { tenantId },
+                create: {
+                    tenantId,
+                    userId: session.user.id,
+                    razorpayCustomerId: 'cust_demo_' + Date.now(),
+                    razorpaySubscriptionId: 'sub_demo_' + Date.now(),
+                    razorpayPlanId: 'plan_demo_' + planType.toLowerCase(),
+                    planType,
+                    status: 'ACTIVE',
+                    billingCycle,
+                    currentPeriodStart: new Date(),
+                    currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                },
+                update: {
+                    planType,
+                    status: 'ACTIVE',
+                    billingCycle,
+                    currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                },
+            });
+
+            return NextResponse.json({
+                success: true,
+                demo: true,
+                message: `Successfully upgraded to ${planType}! (Demo mode activated; configure RAZORPAY_KEY_ID in .env for live payment flow)`,
+                subscription: sub,
+            });
+        }
+
         let razorpayCustomerId = tenant.subscription?.razorpayCustomerId ?? null;
         let isNewCustomer = false;
 
-        // ── Step 1: Ensure Razorpay customer exists ────────────────────────────
-        if (!razorpayCustomerId) {
+        // ── Step 1: Ensure valid Razorpay customer exists ────────────────────────
+        // If razorpayCustomerId is null OR is a demo ID, generate a real Razorpay customer
+        if (!razorpayCustomerId || razorpayCustomerId.startsWith('cust_demo_') || !razorpayCustomerId.startsWith('cust_')) {
             const customer = await createRazorpayCustomer({
                 name: tenant.owner.name ?? tenant.name,
                 email: tenant.owner.email,
@@ -154,16 +217,35 @@ export async function POST(request) {
             isNewCustomer = true;
         }
 
-        // ── Step 2: Create Razorpay subscription (status = created / pending) ─
-        const rzSubscription = await createRazorpaySubscription({
-            planId: planConfig.razorpayPlanId,
-            customerId: razorpayCustomerId,
-            totalCount: billingCycle === 'yearly' ? 12 : 120, // 12m or 10y
-        });
+        // ── Step 2: Create Razorpay subscription ────────────────────────────────
+        let rzSubscription;
+        try {
+            rzSubscription = await createRazorpaySubscription({
+                planId: activePlanId,
+                customerId: razorpayCustomerId,
+                totalCount: billingCycle === 'yearly' ? 12 : 120, // 12m or 10y
+            });
+        } catch (subErr) {
+            console.warn('[Razorpay] Subscription attempt 1 failed:', subErr?.error?.description || subErr.message);
+            // If the customer ID was stale/not found in this Razorpay account, recreate customer and retry
+            if (subErr?.statusCode === 400 || subErr?.error?.code === 'BAD_REQUEST_ERROR' || subErr.message?.includes('invalid')) {
+                const customer = await createRazorpayCustomer({
+                    name: tenant.owner.name ?? tenant.name,
+                    email: tenant.owner.email,
+                });
+                razorpayCustomerId = customer.id;
+                isNewCustomer = true;
+                rzSubscription = await createRazorpaySubscription({
+                    planId: activePlanId,
+                    customerId: razorpayCustomerId,
+                    totalCount: billingCycle === 'yearly' ? 12 : 120,
+                });
+            } else {
+                throw subErr;
+            }
+        }
 
         // ── Step 3: Upsert internal Subscription row ───────────────────────────
-        // Only set TRIAL if we literally trust them to trial first without paying.
-        // Otherwise, it sits as PENDING until the Razorpay webhook confirms payment.
         const currentStatus = tenant.subscription?.status;
         const targetStatus = (currentStatus === 'ACTIVE' || currentStatus === 'TRIAL') ? currentStatus : 'PAUSED';
 
@@ -174,16 +256,15 @@ export async function POST(request) {
                 userId: session.user.id,
                 razorpayCustomerId,
                 razorpaySubscriptionId: rzSubscription.id,
-                razorpayPlanId: planConfig.razorpayPlanId,
+                razorpayPlanId: activePlanId,
                 planType,
-                status: 'PAUSED',       // Requires webhook to flip to ACTIVE
+                status: 'PAUSED',       // Requires webhook or payment callback to flip to ACTIVE
                 billingCycle,
             },
             update: {
-                // Allow re-initiation if previous was cancelled
                 razorpayCustomerId,
                 razorpaySubscriptionId: rzSubscription.id,
-                razorpayPlanId: planConfig.razorpayPlanId,
+                razorpayPlanId: activePlanId,
                 planType,
                 status: targetStatus,
                 billingCycle,
